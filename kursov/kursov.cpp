@@ -1,24 +1,26 @@
 ﻿#include <iostream>
 #include <fstream>
 #include <vector>
-#include <cstring>
+#include <iomanip>
 
 using namespace std;
 
+// Класс для работы с матрицами
 class Matrix {
-public:
-    int size;  // Размерность матрицы
-    int** data;  // Данные матрицы
+private:
+    int size;      // Размер матрицы
+    int** data;    // Динамическое хранение матрицы
 
-    // Конструктор для создания матрицы заданного размера
+public:
+    // Конструктор
     Matrix(int n) : size(n) {
         data = new int* [size];
         for (int i = 0; i < size; ++i) {
-            data[i] = new int[size];
+            data[i] = new int[size] {0}; // Инициализация нулями
         }
     }
 
-    // Деструктор для освобождения памяти
+    // Деструктор
     ~Matrix() {
         for (int i = 0; i < size; ++i) {
             delete[] data[i];
@@ -26,7 +28,12 @@ public:
         delete[] data;
     }
 
-    // Функция для ввода данных из консоли
+    // Получение размера матрицы
+    int getSize() const {
+        return size;
+    }
+
+    // Консольный ввод
     void input() {
         cout << "Введите элементы матрицы (" << size << "x" << size << "):\n";
         for (int i = 0; i < size; ++i) {
@@ -36,129 +43,135 @@ public:
         }
     }
 
-    // Функция для вывода матрицы в консоль
+    // Консольный вывод
     void output() const {
         for (int i = 0; i < size; ++i) {
             for (int j = 0; j < size; ++j) {
-                cout << data[i][j] << " ";
+                cout << setw(5) << data[i][j] << " ";
             }
             cout << endl;
         }
     }
 
-    // Функция для записи матрицы в файл
-    void saveToFile(const string& filename) const {
-        ofstream out(filename);
-        if (!out) {
-            cout << "Ошибка при открытии файла для записи.\n";
-            return;
-        }
-        out << size << endl;
-        for (int i = 0; i < size; ++i) {
-            for (int j = 0; j < size; ++j) {
-                out << data[i][j] << " ";
-            }
-            out << endl;
-        }
-        out.close();
-    }
-
-    // Функция для чтения матрицы из файла
+    // Файловый ввод
     void loadFromFile(const string& filename) {
-        ifstream in(filename);
-        if (!in) {
-            cout << "Ошибка при открытии файла для чтения.\n";
+        ifstream file(filename);
+        if (!file.is_open()) {
+            cout << "Ошибка открытия файла для чтения.\n";
             return;
         }
-        in >> size;
         for (int i = 0; i < size; ++i) {
             for (int j = 0; j < size; ++j) {
-                in >> data[i][j];
+                file >> data[i][j];
             }
         }
-        in.close();
+        file.close();
+        cout << "Данные успешно загружены из файла.\n";
     }
 
-    // Функция для редактирования элемента матрицы
+    // Файловый вывод
+    void saveToFile(const string& filename) const {
+        ofstream file(filename);
+        if (!file.is_open()) {
+            cout << "Ошибка открытия файла для записи.\n";
+            return;
+        }
+        for (int i = 0; i < size; ++i) {
+            for (int j = 0; j < size; ++j) {
+                file << data[i][j] << " ";
+            }
+            file << endl;
+        }
+        file.close();
+        cout << "Данные успешно сохранены в файл.\n";
+    }
+
+    // Редактирование элемента
     void editElement() {
         int row, col, value;
-        cout << "Введите номер строки и столбца для редактирования (1-" << size << "): ";
+        cout << "Введите строку и столбец (от 1 до " << size << "): ";
         cin >> row >> col;
+        if (row < 1 || row > size || col < 1 || col > size) {
+            cout << "Некорректные индексы.\n";
+            return;
+        }
         cout << "Введите новое значение: ";
         cin >> value;
         data[row - 1][col - 1] = value;
+        cout << "Элемент изменён.\n";
     }
 
-    // Функция для проверки совпадения строки с столбцом
-    bool compareRowWithColumn(int row, int col) const {
-        for (int i = 0; i < size; ++i) {
-            if (data[row][i] != data[i][col]) {
+    // Проверка, совпадает ли строка i матрицы A со столбцом j матрицы B
+    static bool rowMatchesColumn(const Matrix& A, int row, const Matrix& B, int col) {
+        for (int k = 0; k < A.size; ++k) {
+            if (A.data[row][k] != B.data[k][col]) {
                 return false;
             }
         }
         return true;
     }
 
-    // Функция для записи строк из A в C, если они совпадают с каким-либо столбцом B
-    void processMatrix(const Matrix& B, Matrix& C) {
-        for (int i = 0; i < size; ++i) {
+    // Записать в матрицу C строки из A, совпадающие с любым столбцом из B
+    static void processMatrix(const Matrix& A, const Matrix& B, Matrix& C) {
+        if (A.size != B.size || A.size != C.size) {
+            cout << "Ошибка: размеры матриц не совпадают.\n";
+            return;
+        }
+        for (int i = 0; i < A.size; ++i) {
             bool matchFound = false;
-            for (int j = 0; j < size; ++j) {
-                if (compareRowWithColumn(i, j)) {
+            for (int j = 0; j < B.size; ++j) {
+                if (rowMatchesColumn(A, i, B, j)) {
                     matchFound = true;
                     break;
                 }
             }
-            for (int j = 0; j < size; ++j) {
-                C.data[i][j] = matchFound ? data[i][j] : 0;
+            for (int j = 0; j < C.size; ++j) {
+                C.data[i][j] = matchFound ? A.data[i][j] : 0;
             }
         }
     }
 };
 
-// Функция для отображения главного меню
+// Меню программы
 void showMenu() {
-    cout << "\nГлавное меню:\n";
-    cout << "1. Ввод данных для матрицы\n";
-    cout << "2. Вывод данных матриц\n";
-    cout << "3. Сохранить матрицу в файл\n";
-    cout << "4. Загрузить матрицу из файла\n";
-    cout << "5. Редактировать элемент матрицы\n";
-    cout << "6. Обработать матрицы A и B, записать результат в C\n";
+    cout << "\nМеню:\n";
+    cout << "1. Ввод матрицы\n";
+    cout << "2. Вывод матрицы\n";
+    cout << "3. Редактировать элемент матрицы\n";
+    cout << "4. Сохранить матрицу в файл\n";
+    cout << "5. Загрузить матрицу из файла\n";
+    cout << "6. Обработать матрицы A и B, результат записать в C\n";
     cout << "0. Выход\n";
 }
 
-// Главная функция
 int main() {
     setlocale(LC_ALL, "Russian");
 
     int size;
-    cout << "Введите размерность матрицы: ";
+    cout << "Введите размер квадратных матриц: ";
     cin >> size;
 
-    // Создаем три матрицы A, B и C
+    // Инициализация матриц
     Matrix A(size), B(size), C(size);
 
     int choice;
     while (true) {
         showMenu();
-        cout << "Ваш выбор: ";
+        cout << "Выберите пункт меню: ";
         cin >> choice;
 
         switch (choice) {
-        case 1:
-            cout << "Выберите матрицу для ввода данных:\n";
-            cout << "1. Матрица A\n";
-            cout << "2. Матрица B\n";
-            cout << "3. Матрица C\n";
-            int matChoice;
-            cin >> matChoice;
-            if (matChoice == 1) A.input();
-            else if (matChoice == 2) B.input();
-            else if (matChoice == 3) C.input();
+        case 1: {
+            int mat;
+            cout << "Выберите матрицу для ввода (1 - A, 2 - B, 3 - C): ";
+            cin >> mat;
+            if (mat == 1) A.input();
+            else if (mat == 2) B.input();
+            else if (mat == 3) C.input();
+            else cout << "Неверный выбор.\n";
             break;
-
-        case 2:
+        }
+        case 2: {
             cout << "Матрица A:\n";
             A.output();
             cout << "Матрица B:\n";
@@ -166,52 +179,45 @@ int main() {
             cout << "Матрица C:\n";
             C.output();
             break;
-
-        case 3:
-            cout << "Выберите матрицу для сохранения:\n";
-            cout << "1. Матрица A\n";
-            cout << "2. Матрица B\n";
-            cout << "3. Матрица C\n";
-            cin >> matChoice;
-            {
-                string filename;
-                cout << "Введите имя файла: ";
-                cin >> filename;
-                if (matChoice == 1) A.saveToFile(filename);
-                else if (matChoice == 2) B.saveToFile(filename);
-                else if (matChoice == 3) C.saveToFile(filename);
-            }
+        }
+        case 3: {
+            int mat;
+            cout << "Выберите матрицу для редактирования (1 - A, 2 - B, 3 - C): ";
+            cin >> mat;
+            if (mat == 1) A.editElement();
+            else if (mat == 2) B.editElement();
+            else if (mat == 3) C.editElement();
+            else cout << "Неверный выбор.\n";
             break;
-
-        case 4:
-            cout << "Выберите матрицу для загрузки:\n";
-            cout << "1. Матрица A\n";
-            cout << "2. Матрица B\n";
-            cout << "3. Матрица C\n";
-            cin >> matChoice;
-            {
-                string filename;
-                cout << "Введите имя файла: ";
-                cin >> filename;
-                if (matChoice == 1) A.loadFromFile(filename);
-                else if (matChoice == 2) B.loadFromFile(filename);
-                else if (matChoice == 3) C.loadFromFile(filename);
-            }
+        }
+        case 4: {
+            int mat;
+            string filename;
+            cout << "Выберите матрицу для сохранения (1 - A, 2 - B, 3 - C): ";
+            cin >> mat;
+            cout << "Введите имя файла: ";
+            cin >> filename;
+            if (mat == 1) A.saveToFile(filename);
+            else if (mat == 2) B.saveToFile(filename);
+            else if (mat == 3) C.saveToFile(filename);
+            else cout << "Неверный выбор.\n";
             break;
-
-        case 5:
-            cout << "Выберите матрицу для редактирования:\n";
-            cout << "1. Матрица A\n";
-            cout << "2. Матрица B\n";
-            cout << "3. Матрица C\n";
-            cin >> matChoice;
-            if (matChoice == 1) A.editElement();
-            else if (matChoice == 2) B.editElement();
-            else if (matChoice == 3) C.editElement();
+        }
+        case 5: {
+            int mat;
+            string filename;
+            cout << "Выберите матрицу для загрузки (1 - A, 2 - B, 3 - C): ";
+            cin >> mat;
+            cout << "Введите имя файла: ";
+            cin >> filename;
+            if (mat == 1) A.loadFromFile(filename);
+            else if (mat == 2) B.loadFromFile(filename);
+            else if (mat == 3) C.loadFromFile(filename);
+            else cout << "Неверный выбор.\n";
             break;
-
+        }
         case 6:
-            A.processMatrix(B, C);
+            Matrix::processMatrix(A, B, C);
             cout << "Матрица C после обработки:\n";
             C.output();
             break;
@@ -221,10 +227,8 @@ int main() {
             return 0;
 
         default:
-            cout << "Неверный выбор. Попробуйте снова.\n";
+            cout << "Неверный пункт меню.\n";
             break;
         }
     }
-
-    return 0;
 }
